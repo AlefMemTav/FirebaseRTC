@@ -1,6 +1,7 @@
 {
   "projects": {
-    "redes": "fir-rtc-89b99-b4836"
+    "redes": "fir-rtc-89b99-b4836",
+    "default": "fir-rtc-89b99-b4836"
   },
   "targets": {},
   "etags": {},

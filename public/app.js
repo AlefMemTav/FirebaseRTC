@@ -7,7 +7,7 @@ const configuration = {
         'stun:stun1.l.google.com:19302',
         'stun:stun2.l.google.com:19302',
       ],
-    },
+    }
   ],
   iceCandidatePoolSize: 10,
 };
@@ -257,6 +257,135 @@ function registerPeerConnectionListeners() {
     console.log(
         `ICE connection state change: ${peerConnection.iceConnectionState}`);
   });
+}
+
+
+let screenStream = null; // Adicionado para armazenar o stream da tela compartilhada
+let isScreenSharing = false; // Adicionado para rastrear se a tela está sendo compartilhada
+
+// Função para compartilhar a tela
+async function startScreenShare() {
+    if (isScreenSharing) {
+        console.log('A tela já está sendo compartilhada.');
+        return;
+    }
+
+    try {
+        // Obtém o stream da tela compartilhada
+        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+
+        // Mostra a tela compartilhada no localVideo
+        const localVideo = document.querySelector('#localVideo');
+        localVideo.srcObject = screenStream;
+
+        // Atualiza os botões
+        document.querySelector('#screenShareBtn').style.display = 'none';
+        document.querySelector('#stopScreenShareBtn').style.display = 'inline-block';
+
+        // Se houver um peerConnection, atualize o track de vídeo
+        if (peerConnection) {
+            const videoTrack = screenStream.getVideoTracks()[0];
+            const sender = peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
+            if (sender) {
+                peerConnection.removeTrack(sender);
+            }
+            peerConnection.addTrack(videoTrack, screenStream);
+        }
+        localStream = null;
+        // Armazena o stream compartilhado
+        localStream = screenStream;
+        isScreenSharing = true;
+
+    } catch (error) {
+        console.error('Error sharing screen:', error);
+    }
+}
+
+// Função para parar de compartilhar a tela
+async function stopScreenShare() {
+    if (!isScreenSharing) {
+        console.log('Nenhuma tela está sendo compartilhada.');
+        return;
+    }
+
+    if (screenStream) {
+        // Para todos os tracks do stream compartilhado
+        screenStream.getTracks().forEach(track => track.stop());
+    }
+
+    try {
+        // Restaura o stream da câmera no localVideo
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const localVideo = document.querySelector('#localVideo');
+        localVideo.srcObject = localStream;
+
+        // Atualiza os botões
+        document.querySelector('#screenShareBtn').style.display = 'inline-block';
+        document.querySelector('#stopScreenShareBtn').style.display = 'none';
+
+        // Se houver um peerConnection, atualize o track de vídeo
+        if (peerConnection) {
+            const videoTrack = localStream.getVideoTracks()[0];
+            const sender = peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
+            if (sender) {
+                peerConnection.removeTrack(sender);
+            }
+            peerConnection.addTrack(videoTrack, localStream);
+        }
+
+    } catch (error) {
+        console.error('Error accessing camera:', error);
+    } finally {
+        isScreenSharing = false;
+    }
+}
+
+// Adiciona os eventos aos botões
+document.querySelector('#screenShareBtn').addEventListener('click', startScreenShare);
+document.querySelector('#stopScreenShareBtn').addEventListener('click', stopScreenShare);
+
+// Função para encerrar a chamada
+async function hangUp(e) {
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+    }
+    
+    if (screenStream) {
+        screenStream.getTracks().forEach(track => track.stop());
+    }
+
+    if (remoteStream) {
+        remoteStream.getTracks().forEach(track => track.stop());
+    }
+
+    if (peerConnection) {
+        peerConnection.close();
+    }
+
+    document.querySelector('#localVideo').srcObject = null;
+    document.querySelector('#remoteVideo').srcObject = null;
+    document.querySelector('#cameraBtn').disabled = false;
+    document.querySelector('#joinBtn').disabled = true;
+    document.querySelector('#createBtn').disabled = true;
+    document.querySelector('#hangupBtn').disabled = true;
+    document.querySelector('#currentRoom').innerText = '';
+
+    // Delete room on hangup
+    if (roomId) {
+        const db = firebase.firestore();
+        const roomRef = db.collection('rooms').doc(roomId);
+        const calleeCandidates = await roomRef.collection('calleeCandidates').get();
+        calleeCandidates.forEach(async candidate => {
+            await candidate.ref.delete();
+        });
+        const callerCandidates = await roomRef.collection('callerCandidates').get();
+        callerCandidates.forEach(async candidate => {
+            await candidate.ref.delete();
+        });
+        await roomRef.delete();
+    }
+
+    document.location.reload(true);
 }
 
 init();
