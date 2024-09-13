@@ -226,6 +226,9 @@ async function openUserMedia(e) {
   document.querySelector('#joinBtn').disabled = false;
   document.querySelector('#createBtn').disabled = false;
   document.querySelector('#hangupBtn').disabled = false;
+  document.querySelector('#screenShareBtn').disabled = false;
+  document.querySelector('#stopScreenShareBtn').disabled = false;
+  
 }
 
 function registerPeerConnectionListeners() {
@@ -264,8 +267,8 @@ async function startScreenShare() {
     localVideo.srcObject = screenStream;
 
     // Atualiza os botões
-    document.querySelector('#screenShareBtn').style.display = 'none';
-    document.querySelector('#stopScreenShareBtn').style.display = 'inline-block';
+    document.querySelector('#screenShareBtn').style.display = 'none'; // Oculta botão de compartilhar tela
+    document.querySelector('#stopScreenShareBtn').style.display = 'inline-block'; // Mostra botão de parar compartilhamento de tela
 
     // Se houver um peerConnection, atualize o track de vídeo
     if (peerConnection) {
@@ -305,8 +308,8 @@ async function stopScreenShare() {
     localVideo.srcObject = localStream;
 
     // Atualiza os botões
-    document.querySelector('#screenShareBtn').style.display = 'inline-block';
-    document.querySelector('#stopScreenShareBtn').style.display = 'none';
+    document.querySelector('#screenShareBtn').style.display = 'inline-block'; // Mostra botão de compartilhar tela
+    document.querySelector('#stopScreenShareBtn').style.display = 'none'; // Oculta botão de parar compartilhamento de tela
 
     // Se houver um peerConnection, atualize o track de vídeo
     if (peerConnection) {
@@ -352,6 +355,8 @@ async function hangUp(e) {
   document.querySelector('#joinBtn').disabled = true;
   document.querySelector('#createBtn').disabled = true;
   document.querySelector('#hangupBtn').disabled = true;
+  document.querySelector('#screenShareBtn').disabled = true;
+  document.querySelector('#stopScreenShareBtn').disabled = true;
   document.querySelector('#currentRoom').innerText = '';
 
   // Deleta a sala no hangup
@@ -370,6 +375,40 @@ async function hangUp(e) {
   }
 
   document.location.reload(true);
+}
+
+// Função para reiniciar caso o usuário recarregue a tela
+window.onbeforeunload = function () {
+  console.log('Reiniciando tela');
+
+  if (peerConnection) {
+    peerConnection.close();
+  }
+
+  // Para todos os streams locais
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+  }
+
+  // Para o stream de tela, se estiver sendo compartilhado
+  if (screenStream) {
+    screenStream.getTracks().forEach(track => track.stop());
+  }
+
+  peerConnection = null;
+  localStream = null;
+  remoteStream = null;
+  screenStream = null;
+  isScreenSharing = false;
+
+   // Reseta os botões e interface
+   document.querySelector('#cameraBtn').disabled = false;
+   document.querySelector('#joinBtn').disabled = true;
+   document.querySelector('#createBtn').disabled = true;
+   document.querySelector('#hangupBtn').disabled = true;
+   document.querySelector('#screenShareBtn').disabled = true;
+   document.querySelector('#stopScreenShareBtn').disabled = true;
+   document.querySelector('#currentRoom').innerText = '';
 }
 
 // Chama função que inicializa a aplicação
