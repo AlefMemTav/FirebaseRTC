@@ -7,25 +7,54 @@ const configuration = {
         'stun:stun1.l.google.com:19302',
         'stun:stun2.l.google.com:19302',
       ],
-    }
+    },
+    {
+      urls: "stun:stun.relay.metered.ca:80",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:80",
+      username: "73961d1c52a6844d417e34a6",
+      credential: "ApSuS/7WD65X8vbJ",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:80?transport=tcp",
+      username: "73961d1c52a6844d417e34a6",
+      credential: "ApSuS/7WD65X8vbJ",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:443",
+      username: "73961d1c52a6844d417e34a6",
+      credential: "ApSuS/7WD65X8vbJ",
+    },
+    {
+      urls: "turns:global.relay.metered.ca:443?transport=tcp",
+      username: "73961d1c52a6844d417e34a6",
+      credential: "ApSuS/7WD65X8vbJ",
+    },
   ],
   iceCandidatePoolSize: 10,
 };
 
-let peerConnection = null;
-let localStream = null;
-let remoteStream = null;
-let roomDialog = null;
-let roomId = null;
+let peerConnection = null; // Representa o objeto RTCPeerConnection que gerencia a conexão de WebRTC entre os usuários
+let localStream = null; //  Stream de mídia capturado localmente (câmera e/ou microfone) que será enviado para o peer.
+let remoteStream = null; // Stream de mídia recebida do peer remoto.
+let roomDialog = null; // Diálogo para criar ou entrar em uma sala WebRTC.
+let roomId = null; // Identificador da sala em que o usuário entrou ou criou
+let screenStream = null; // Stream da tela compartilhada
+let isScreenSharing = false; // Rastrear se a tela está sendo compartilhada
 
+// Inicializa a aplicação
 function init() {
-  document.querySelector('#cameraBtn').addEventListener('click', openUserMedia);
-  document.querySelector('#hangupBtn').addEventListener('click', hangUp);
-  document.querySelector('#createBtn').addEventListener('click', createRoom);
-  document.querySelector('#joinBtn').addEventListener('click', joinRoom);
-  roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog'));
+  document.querySelector('#cameraBtn').addEventListener('click', openUserMedia); // Evento para capturar mídia do usuário (câmera/microfone).
+  document.querySelector('#hangupBtn').addEventListener('click', hangUp); // Evento para finalizar a chamada e limpar os streams.
+  document.querySelector('#createBtn').addEventListener('click', createRoom); // Evento para criar uma nova sala WebRTC.
+  document.querySelector('#joinBtn').addEventListener('click', joinRoom); // Evento para entrar em uma sala WebRTC existente.
+  document.querySelector('#screenShareBtn').addEventListener('click', startScreenShare); // Evento para iniciar o compartilhamento de tela.
+  document.querySelector('#stopScreenShareBtn').addEventListener('click', stopScreenShare); // Evento para parar o compartilhamento de tela.
+  roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog')); // Inicializa o diálogo modal para criação/entrada em uma sala.
 }
 
+// Cria uma sala
 async function createRoom() {
   document.querySelector('#createBtn').disabled = true;
   document.querySelector('#joinBtn').disabled = true;
@@ -69,7 +98,7 @@ async function createRoom() {
   roomId = roomRef.id;
   console.log(`New room created with SDP offer. Room ID: ${roomRef.id}`);
   document.querySelector(
-      '#currentRoom').innerText = `Current room is ${roomRef.id} - You are the caller!`;
+    '#currentRoom').innerText = `Current room is ${roomRef.id} - You are the caller!`;
   // Code for creating a room above
 
   peerConnection.addEventListener('track', event => {
@@ -109,13 +138,13 @@ function joinRoom() {
   document.querySelector('#joinBtn').disabled = true;
 
   document.querySelector('#confirmJoinBtn').
-      addEventListener('click', async () => {
-        roomId = document.querySelector('#room-id').value;
-        console.log('Join room: ', roomId);
-        document.querySelector(
-            '#currentRoom').innerText = `Current room is ${roomId} - You are the callee!`;
-        await joinRoomById(roomId);
-      }, {once: true});
+    addEventListener('click', async () => {
+      roomId = document.querySelector('#room-id').value;
+      console.log('Join room: ', roomId);
+      document.querySelector(
+        '#currentRoom').innerText = `Current room is ${roomId} - You are the callee!`;
+      await joinRoomById(roomId);
+    }, { once: true });
   roomDialog.open();
 }
 
@@ -186,7 +215,7 @@ async function joinRoomById(roomId) {
 
 async function openUserMedia(e) {
   const stream = await navigator.mediaDevices.getUserMedia(
-      {video: true, audio: true});
+    { video: true, audio: true });
   document.querySelector('#localVideo').srcObject = stream;
   localStream = stream;
   remoteStream = new MediaStream();
@@ -199,18 +228,122 @@ async function openUserMedia(e) {
   document.querySelector('#hangupBtn').disabled = false;
 }
 
-async function hangUp(e) {
-  const tracks = document.querySelector('#localVideo').srcObject.getTracks();
-  tracks.forEach(track => {
-    track.stop();
+function registerPeerConnectionListeners() {
+  peerConnection.addEventListener('icegatheringstatechange', () => {
+    console.log(
+      `ICE gathering state changed: ${peerConnection.iceGatheringState}`);
   });
+
+  peerConnection.addEventListener('connectionstatechange', () => {
+    console.log(`Connection state change: ${peerConnection.connectionState}`);
+  });
+
+  peerConnection.addEventListener('signalingstatechange', () => {
+    console.log(`Signaling state change: ${peerConnection.signalingState}`);
+  });
+
+  peerConnection.addEventListener('iceconnectionstatechange ', () => {
+    console.log(
+      `ICE connection state change: ${peerConnection.iceConnectionState}`);
+  });
+}
+
+// Função para compartilhar a tela
+async function startScreenShare() {
+  if (isScreenSharing) {
+    console.log('A tela já está sendo compartilhada.');
+    return;
+  }
+
+  try {
+    // Obtém o stream da tela compartilhada
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+
+    // Mostra a tela compartilhada no localVideo
+    const localVideo = document.querySelector('#localVideo');
+    localVideo.srcObject = screenStream;
+
+    // Atualiza os botões
+    document.querySelector('#screenShareBtn').style.display = 'none';
+    document.querySelector('#stopScreenShareBtn').style.display = 'inline-block';
+
+    // Se houver um peerConnection, atualize o track de vídeo
+    if (peerConnection) {
+      const videoTrack = screenStream.getVideoTracks()[0];
+      const sender = peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
+      if (sender) {
+        peerConnection.removeTrack(sender);
+      }
+      peerConnection.addTrack(videoTrack, screenStream);
+    }
+    localStream = null;
+    // Armazena o stream compartilhado
+    localStream = screenStream;
+    isScreenSharing = true;
+
+  } catch (error) {
+    console.error('Error sharing screen:', error);
+  }
+}
+
+// Função para parar de compartilhar a tela
+async function stopScreenShare() {
+  if (!isScreenSharing) {
+    console.log('Nenhuma tela está sendo compartilhada.');
+    return;
+  }
+
+  if (screenStream) {
+    // Para todos os tracks do stream compartilhado
+    screenStream.getTracks().forEach(track => track.stop());
+  }
+
+  try {
+    // Restaura o stream da câmera no localVideo
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const localVideo = document.querySelector('#localVideo');
+    localVideo.srcObject = localStream;
+
+    // Atualiza os botões
+    document.querySelector('#screenShareBtn').style.display = 'inline-block';
+    document.querySelector('#stopScreenShareBtn').style.display = 'none';
+
+    // Se houver um peerConnection, atualize o track de vídeo
+    if (peerConnection) {
+      const videoTrack = localStream.getVideoTracks()[0];
+      const sender = peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
+      if (sender) {
+        peerConnection.removeTrack(sender);
+      }
+      peerConnection.addTrack(videoTrack, localStream);
+    }
+
+  } catch (error) {
+    console.error('Error accessing camera:', error);
+  } finally {
+    isScreenSharing = false;
+  }
+}
+
+// Função para encerrar a chamada
+async function hangUp(e) {
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+  }
+
+  if (screenStream) {
+    screenStream.getTracks().forEach(track => track.stop());
+  }
 
   if (remoteStream) {
     remoteStream.getTracks().forEach(track => track.stop());
   }
 
+  // Verifica se a conexão ainda está aberta antes de fechar
   if (peerConnection) {
-    peerConnection.close();
+    if (peerConnection.connectionState !== 'closed') {
+        peerConnection.close(); // Fecha a conexão WebRTC
+    }
   }
 
   document.querySelector('#localVideo').srcObject = null;
@@ -221,7 +354,7 @@ async function hangUp(e) {
   document.querySelector('#hangupBtn').disabled = true;
   document.querySelector('#currentRoom').innerText = '';
 
-  // Delete room on hangup
+  // Deleta a sala no hangup
   if (roomId) {
     const db = firebase.firestore();
     const roomRef = db.collection('rooms').doc(roomId);
@@ -239,153 +372,5 @@ async function hangUp(e) {
   document.location.reload(true);
 }
 
-function registerPeerConnectionListeners() {
-  peerConnection.addEventListener('icegatheringstatechange', () => {
-    console.log(
-        `ICE gathering state changed: ${peerConnection.iceGatheringState}`);
-  });
-
-  peerConnection.addEventListener('connectionstatechange', () => {
-    console.log(`Connection state change: ${peerConnection.connectionState}`);
-  });
-
-  peerConnection.addEventListener('signalingstatechange', () => {
-    console.log(`Signaling state change: ${peerConnection.signalingState}`);
-  });
-
-  peerConnection.addEventListener('iceconnectionstatechange ', () => {
-    console.log(
-        `ICE connection state change: ${peerConnection.iceConnectionState}`);
-  });
-}
-
-
-let screenStream = null; // Adicionado para armazenar o stream da tela compartilhada
-let isScreenSharing = false; // Adicionado para rastrear se a tela está sendo compartilhada
-
-// Função para compartilhar a tela
-async function startScreenShare() {
-    if (isScreenSharing) {
-        console.log('A tela já está sendo compartilhada.');
-        return;
-    }
-
-    try {
-        // Obtém o stream da tela compartilhada
-        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-
-        // Mostra a tela compartilhada no localVideo
-        const localVideo = document.querySelector('#localVideo');
-        localVideo.srcObject = screenStream;
-
-        // Atualiza os botões
-        document.querySelector('#screenShareBtn').style.display = 'none';
-        document.querySelector('#stopScreenShareBtn').style.display = 'inline-block';
-
-        // Se houver um peerConnection, atualize o track de vídeo
-        if (peerConnection) {
-            const videoTrack = screenStream.getVideoTracks()[0];
-            const sender = peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
-            if (sender) {
-                peerConnection.removeTrack(sender);
-            }
-            peerConnection.addTrack(videoTrack, screenStream);
-        }
-        localStream = null;
-        // Armazena o stream compartilhado
-        localStream = screenStream;
-        isScreenSharing = true;
-
-    } catch (error) {
-        console.error('Error sharing screen:', error);
-    }
-}
-
-// Função para parar de compartilhar a tela
-async function stopScreenShare() {
-    if (!isScreenSharing) {
-        console.log('Nenhuma tela está sendo compartilhada.');
-        return;
-    }
-
-    if (screenStream) {
-        // Para todos os tracks do stream compartilhado
-        screenStream.getTracks().forEach(track => track.stop());
-    }
-
-    try {
-        // Restaura o stream da câmera no localVideo
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        const localVideo = document.querySelector('#localVideo');
-        localVideo.srcObject = localStream;
-
-        // Atualiza os botões
-        document.querySelector('#screenShareBtn').style.display = 'inline-block';
-        document.querySelector('#stopScreenShareBtn').style.display = 'none';
-
-        // Se houver um peerConnection, atualize o track de vídeo
-        if (peerConnection) {
-            const videoTrack = localStream.getVideoTracks()[0];
-            const sender = peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
-            if (sender) {
-                peerConnection.removeTrack(sender);
-            }
-            peerConnection.addTrack(videoTrack, localStream);
-        }
-
-    } catch (error) {
-        console.error('Error accessing camera:', error);
-    } finally {
-        isScreenSharing = false;
-    }
-}
-
-// Adiciona os eventos aos botões
-document.querySelector('#screenShareBtn').addEventListener('click', startScreenShare);
-document.querySelector('#stopScreenShareBtn').addEventListener('click', stopScreenShare);
-
-// Função para encerrar a chamada
-async function hangUp(e) {
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-    }
-    
-    if (screenStream) {
-        screenStream.getTracks().forEach(track => track.stop());
-    }
-
-    if (remoteStream) {
-        remoteStream.getTracks().forEach(track => track.stop());
-    }
-
-    if (peerConnection) {
-        peerConnection.close();
-    }
-
-    document.querySelector('#localVideo').srcObject = null;
-    document.querySelector('#remoteVideo').srcObject = null;
-    document.querySelector('#cameraBtn').disabled = false;
-    document.querySelector('#joinBtn').disabled = true;
-    document.querySelector('#createBtn').disabled = true;
-    document.querySelector('#hangupBtn').disabled = true;
-    document.querySelector('#currentRoom').innerText = '';
-
-    // Delete room on hangup
-    if (roomId) {
-        const db = firebase.firestore();
-        const roomRef = db.collection('rooms').doc(roomId);
-        const calleeCandidates = await roomRef.collection('calleeCandidates').get();
-        calleeCandidates.forEach(async candidate => {
-            await candidate.ref.delete();
-        });
-        const callerCandidates = await roomRef.collection('callerCandidates').get();
-        callerCandidates.forEach(async candidate => {
-            await candidate.ref.delete();
-        });
-        await roomRef.delete();
-    }
-
-    document.location.reload(true);
-}
-
+// Chama função que inicializa a aplicação
 init();
