@@ -40,9 +40,9 @@ let peerConnections = {};  // Armazenar as conexões de cada participante
 let remoteStreams = {};    // Armazenar os fluxos de mídia de cada participante
 
 
-let peerConnection = null; // Representa o objeto RTCPeerConnection que gerencia a conexão de WebRTC entre os usuários
+// let peerConnection = null; // Representa o objeto RTCPeerConnection que gerencia a conexão de WebRTC entre os usuários
 let localStream = null; //  Stream de mídia capturado localmente (câmera e/ou microfone) que será enviado para o peer.
-let remoteStream = null; // Stream de mídia recebida do peer remoto.
+// let remoteStream = null; // Stream de mídia recebida do peer remoto.
 let roomDialog = null; // Diálogo para criar ou entrar em uma sala WebRTC.
 let roomId = null; // Identificador da sala em que o usuário entrou ou criou
 let screenStream = null; // Stream da tela compartilhada
@@ -183,7 +183,7 @@ async function joinRoomById(roomId) {
       remoteStreams[i] = new MediaStream();
       registerPeerConnectionListeners(peerConnections[i], i);
       localStream.getTracks().forEach(track => {
-        peerConnection[i].addTrack(track, localStream);
+        peerConnections[i].addTrack(track, localStream);
       });
   
        // Code for collecting ICE candidates below
@@ -286,29 +286,24 @@ async function startScreenShare() {
   }
 
   try {
-    // Obtém o stream da tela compartilhada
     screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-
-    // Mostra a tela compartilhada no localVideo
     const localVideo = document.querySelector('#localVideo');
     localVideo.srcObject = screenStream;
 
-    // Atualiza os botões
-    document.querySelector('#screenShareBtn').style.display = 'none'; // Oculta botão de compartilhar tela
-    document.querySelector('#stopScreenShareBtn').style.display = 'inline-block'; // Mostra botão de parar compartilhamento de tela
+    document.querySelector('#screenShareBtn').style.display = 'none';
+    document.querySelector('#stopScreenShareBtn').style.display = 'inline-block';
 
-    // Se houver um peerConnection, atualize o track de vídeo
-    if (peerConnection) {
-      const videoTrack = screenStream.getVideoTracks()[0];
-      const sender = peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
-      if (sender) {
-        peerConnection.removeTrack(sender);
+    for (let i = 0; i < 3; i++) {
+      if (peerConnections[i]) {
+        const videoTrack = screenStream.getVideoTracks()[0];
+        const sender = peerConnections[i].getSenders().find(s => s.track.kind === videoTrack.kind);
+        if (sender) {
+          peerConnections[i].removeTrack(sender);
+        }
+        peerConnections[i].addTrack(videoTrack, screenStream);
       }
-      peerConnection.addTrack(videoTrack, screenStream);
     }
     localStream = null;
-    // Armazena o stream compartilhado
-    localStream = screenStream;
     isScreenSharing = true;
 
   } catch (error) {
@@ -338,14 +333,16 @@ async function stopScreenShare() {
     document.querySelector('#screenShareBtn').style.display = 'inline-block'; // Mostra botão de compartilhar tela
     document.querySelector('#stopScreenShareBtn').style.display = 'none'; // Oculta botão de parar compartilhamento de tela
 
-    // Se houver um peerConnection, atualize o track de vídeo
-    if (peerConnection) {
-      const videoTrack = localStream.getVideoTracks()[0];
-      const sender = peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
-      if (sender) {
-        peerConnection.removeTrack(sender);
+    // Atualiza todos os peerConnections com o novo track de vídeo
+    for (let i = 0; i < 3; i++) {
+      if (peerConnections[i]) {
+        const videoTrack = localStream.getVideoTracks()[0];
+        const sender = peerConnections[i].getSenders().find(s => s.track.kind === videoTrack.kind);
+        if (sender) {
+          peerConnections[i].removeTrack(sender);
+        }
+        peerConnections[i].addTrack(videoTrack, localStream);
       }
-      peerConnection.addTrack(videoTrack, localStream);
     }
 
   } catch (error) {
@@ -366,17 +363,14 @@ async function hangUp(e) {
   }
 
 
-  for (let i = 0; i<3; i++){
+  for (let i = 0; i < 3; i++) {
     if (remoteStreams[i]) {
       remoteStreams[i].getTracks().forEach(track => track.stop());
     }
-  }
- 
-
-  // Verifica se a conexão ainda está aberta antes de fechar
-  if (peerConnection) {
-    if (peerConnection.connectionState !== 'closed') {
-        peerConnection.close(); // Fecha a conexão WebRTC
+    if (peerConnections[i]) {
+      if (peerConnections[i].connectionState !== 'closed') {
+        peerConnections[i].close(); // Fecha a conexão WebRTC
+      }
     }
   }
 
