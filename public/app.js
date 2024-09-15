@@ -417,9 +417,7 @@ async function hangUp(e) {
 window.onbeforeunload = function () {
   console.log('Reiniciando tela');
 
-  if (peerConnection) {
-    peerConnection.close();
-  }
+  
 
   // Para todos os streams locais
   if (localStream) {
@@ -436,8 +434,12 @@ window.onbeforeunload = function () {
   // remoteStream = null;
 
   for(let i = 0; i<3 ; i++){
+    if (peerConnections[i]) {
+      peerConnections[i].close();
+    }
     remoteStreams[i] = null
-    peerConnection[i] = null
+    peerConnections[i] = null
+
 
   }
   screenStream = null;
