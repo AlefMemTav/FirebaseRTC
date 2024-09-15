@@ -110,3 +110,21 @@ div#videos > video {
     font-size: 3rem; 
     display: none; 
 }
+
+#muteEmoji {
+    position: absolute;
+    bottom: 10px; 
+    left: 10px;  
+    font-size: 3rem; 
+    display: none;
+}
+
+#muteEmojiRemote {
+    position: absolute;
+    bottom: 10px; 
+    left: 10px;  
+    font-size: 3rem; 
+    display: none;
+}
+
+

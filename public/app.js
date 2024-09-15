@@ -63,6 +63,19 @@ function init() {
         raiseHand(false); // Envia a mensagem para o outro usuário
     }
   });
+
+  document.getElementById('muteSelfBtn').addEventListener('click', function() {
+    var muteEmoji = document.getElementById('muteEmoji');
+    if (muteEmoji.style.display === 'none' || muteEmoji.style.display === '') {
+       muteEmoji.style.display = 'block'; // mostra o emoji
+         muteAudio(true); // Envia a mensagem para o outro usuário
+    } else {
+        muteEmoji.style.display = 'none'; // oculta o emoji
+        muteAudio(false); // Envia a mensagem para o outro usuário
+    }
+  });
+
+
   roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog')); // Inicializa o diálogo modal para criação/entrada em uma sala.
 }
 
@@ -245,6 +258,8 @@ async function openUserMedia(e) {
   document.querySelector('#screenShareBtn').disabled = false;
   document.querySelector('#stopScreenShareBtn').disabled = false;
   document.querySelector('#raiseHandBtn').disabled = false;
+  document.querySelector('#muteSelfBtn').disabled = false;
+
   
 }
 
@@ -256,6 +271,23 @@ function raiseHand(up) {
         dataChannel.send('handRaisedUp');
       else 
         dataChannel.send('handRaiseDown');
+
+      console.log(dataChannel)
+  } else {
+      console.log('dataChannel:', dataChannel);
+      console.log('dataChannel.readyState:', dataChannel ? dataChannel.readyState : 'dataChannel is not initialized');
+      console.error('Canal de dados não está disponível ou não está aberto.');
+  }
+}
+
+// Modifique a função raiseHand para enviar uma mensagem via o canal de dados
+function muteAudio(up) {
+  if (dataChannel && dataChannel.readyState === 'open') {
+      console.log('Enviando mensagem de "mutar aúdio" via canal de dados.');
+      if(up)
+        dataChannel.send('muteUp');
+      else 
+        dataChannel.send('muteDown');
 
       console.log(dataChannel)
   } else {
@@ -279,7 +311,13 @@ function createDataChannel() {
       showHandEmojiOnRemoteVideo(true, 'create');
     }else if(event.data === 'handRaiseDown'){
       showHandEmojiOnRemoteVideo(false, 'create');
+    }else if(event.data == 'muteUp'){
+      showEmojiOnMuteAudio(true)
+
+    }else if(event.data == 'muteDown'){
+      showEmojiOnMuteAudio(false)
     }
+
   };
 
   dataChannel.onclose = () => {
@@ -301,6 +339,12 @@ function setupDataChannel(peerConnection) {
         showHandEmojiOnRemoteVideo(true, 'setup');
       }else if(event.data === 'handRaiseDown'){
         showHandEmojiOnRemoteVideo(false, 'setup');
+      
+      }else if(event.data == 'muteUp'){
+        showEmojiOnMuteAudio(true)
+
+      }else if(event.data == 'muteDown'){
+        showEmojiOnMuteAudio(false)
       }
     };
     
@@ -316,8 +360,8 @@ function setupDataChannel(peerConnection) {
 
 
 // Mostrar ou ocultar emoji no vídeo remoto
-function showHandEmojiOnRemoteVideo(show, type) {
-  console.log("show emoji em andamento ===>>>>", show, type)
+function showHandEmojiOnRemoteVideo(show) {
+  console.log("show emoji em andamento ===>>>>", show)
 
   var handEmoji = document.getElementById('handEmojiRemote');
     if (show) {
@@ -327,6 +371,21 @@ function showHandEmojiOnRemoteVideo(show, type) {
     }
 }
 
+function showEmojiOnMuteAudio(show, type) {
+  console.log("show emoji em andamento ===>>>>", show, type)
+
+  var muteEmoji = document.getElementById('muteEmojiRemote');
+  var mute = document.getElementById('remoteVideo');
+
+    if (show) {
+      muteEmoji.style.display = 'block'; // mostra o emoji
+      mute.muted = true;
+      
+    } else {
+      muteEmoji.style.display = 'none'; // oculta o emoji
+      mute.muted = false;
+    }
+}
 
 function registerPeerConnectionListeners() {
   peerConnection.addEventListener('icegatheringstatechange', () => {
@@ -461,6 +520,8 @@ async function hangUp(e) {
   document.querySelector('#currentRoom').innerText = '';
   document.querySelector('#handEmoji').style.display = 'none';
   document.querySelector('#handEmojiRemote').style.display = 'none';
+  document.querySelector('#muteEmoji').style.display = 'none';
+  document.querySelector('#muteEmojiRemote').style.display = 'none';
 
 
 
@@ -518,6 +579,7 @@ window.onbeforeunload = function () {
    document.querySelector('#screenShareBtn').disabled = true;
    document.querySelector('#stopScreenShareBtn').disabled = true;
    document.querySelector('#raiseHandBtn').disabled = true;
+   document.querySelector('#muteSelfBtn').disabled = true;
 
    document.querySelector('#currentRoom').innerText = '';
 }
