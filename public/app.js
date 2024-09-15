@@ -42,8 +42,8 @@ let roomDialog = null; // Diálogo para criar ou entrar em uma sala WebRTC.
 let roomId = null; // Identificador da sala em que o usuário entrou ou criou
 let screenStream = null; // Stream da tela compartilhada
 let isScreenSharing = false; // Rastrear se a tela está sendo compartilhada
-
-let dataChannel = null;
+let chatChannel = null; // Canal de dados para envio de mensagens diversas
+let emojiChannel = null; // Canal de dados para envio de emoji
 
 // Inicializa a aplicação
 function init() {
@@ -53,16 +53,8 @@ function init() {
   document.querySelector('#joinBtn').addEventListener('click', joinRoom); // Evento para entrar em uma sala WebRTC existente.
   document.querySelector('#screenShareBtn').addEventListener('click', startScreenShare); // Evento para iniciar o compartilhamento de tela.
   document.querySelector('#stopScreenShareBtn').addEventListener('click', stopScreenShare); // Evento para parar o compartilhamento de tela.
-  document.getElementById('raiseHandBtn').addEventListener('click', function() {
-    var handEmoji = document.getElementById('handEmoji');
-    if (handEmoji.style.display === 'none' || handEmoji.style.display === '') {
-        handEmoji.style.display = 'block'; // mostra o emoji
-        raiseHand(true); // Envia a mensagem para o outro usuário
-    } else {
-        handEmoji.style.display = 'none'; // oculta o emoji
-        raiseHand(false); // Envia a mensagem para o outro usuário
-    }
-  });
+  document.querySelector('#raiseHandBtn').addEventListener('click', raiseHand); // Evento para levantar a mão na tela
+  document.querySelector('#downHandBtn').addEventListener('click', downHand); // Evento para abaixar a mão na tela
   roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog')); // Inicializa o diálogo modal para criação/entrada em uma sala.
 }
 
@@ -75,6 +67,12 @@ async function createRoom() {
 
   console.log('Create PeerConnection with configuration: ', configuration);
   peerConnection = new RTCPeerConnection(configuration);
+
+  // Criando o Data Channel
+  chatChannel = peerConnection.createDataChannel('chatChannel');
+  emojiChannel = peerConnection.createDataChannel('emojiChannel');
+  setupDataChannel(chatChannel);
+  setupDataChannel(emojiChannel);
 
   registerPeerConnectionListeners();
 
@@ -90,7 +88,7 @@ async function createRoom() {
       console.log('Got final candidate!');
       return;
     }
-    // console.log('Got candidate: ', event.candidate);
+    //console.log('Got candidate: ', event.candidate);
     callerCandidatesCollection.add(event.candidate.toJSON());
   });
   // Code for collecting ICE candidates above
@@ -137,14 +135,12 @@ async function createRoom() {
     snapshot.docChanges().forEach(async change => {
       if (change.type === 'added') {
         let data = change.doc.data();
-        console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
+        //console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
         await peerConnection.addIceCandidate(new RTCIceCandidate(data));
       }
     });
   });
-
-  setupDataChannel(peerConnection);
-
+  // Listen for remote ICE candidates above
 }
 
 function joinRoom() {
@@ -171,6 +167,19 @@ async function joinRoomById(roomId) {
   if (roomSnapshot.exists) {
     console.log('Create PeerConnection with configuration: ', configuration);
     peerConnection = new RTCPeerConnection(configuration);
+
+    // Adicionando o listener para receber os Data Channels criados pelo caller
+    peerConnection.addEventListener('datachannel', event => {
+      const channel = event.channel;
+      if (channel.label === 'chatChannel') {
+        chatChannel = channel;
+        setupDataChannel(chatChannel);
+      } else if (channel.label === 'emojiChannel') {
+        emojiChannel = channel;
+        setupDataChannel(emojiChannel);
+      }
+    });
+
     registerPeerConnectionListeners();
     localStream.getTracks().forEach(track => {
       peerConnection.addTrack(track, localStream);
@@ -183,7 +192,7 @@ async function joinRoomById(roomId) {
         console.log('Got final candidate!');
         return;
       }
-      console.log('Got candidate: ', event.candidate);
+      //console.log('Got candidate: ', event.candidate);
       calleeCandidatesCollection.add(event.candidate.toJSON());
     });
     // Code for collecting ICE candidates above
@@ -218,14 +227,12 @@ async function joinRoomById(roomId) {
       snapshot.docChanges().forEach(async change => {
         if (change.type === 'added') {
           let data = change.doc.data();
-          console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
+          //console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
           await peerConnection.addIceCandidate(new RTCIceCandidate(data));
         }
       });
     });
-
-    setupDataChannel(peerConnection);
-
+    // Listening for remote ICE candidates above
   }
 }
 
@@ -245,88 +252,8 @@ async function openUserMedia(e) {
   document.querySelector('#screenShareBtn').disabled = false;
   document.querySelector('#stopScreenShareBtn').disabled = false;
   document.querySelector('#raiseHandBtn').disabled = false;
-  
+  document.querySelector('#downHandBtn').disabled = false;
 }
-
-// Modifique a função raiseHand para enviar uma mensagem via o canal de dados
-function raiseHand(up) {
-  if (dataChannel && dataChannel.readyState === 'open') {
-      console.log('Enviando mensagem de "mão levantada" via canal de dados.');
-      if(up)
-        dataChannel.send('handRaisedUp');
-      else 
-        dataChannel.send('handRaiseDown');
-
-      console.log(dataChannel)
-  } else {
-      console.log('dataChannel:', dataChannel);
-      console.log('dataChannel.readyState:', dataChannel ? dataChannel.readyState : 'dataChannel is not initialized');
-      console.error('Canal de dados não está disponível ou não está aberto.');
-  }
-}
-
-// Crie um canal de dados quando a conexão for criada
-function createDataChannel() {
-  dataChannel = peerConnection.createDataChannel('handRaiseChannel');
-  
-  dataChannel.onopen = () => {
-    console.log('Data channel is open');
-  };
-  
-  dataChannel.onmessage = (event) => {
-    console.log('Received message from data channel:', event.data);
-    if (event.data === 'handRaisedUp') {
-      showHandEmojiOnRemoteVideo(true, 'create');
-    }else if(event.data === 'handRaiseDown'){
-      showHandEmojiOnRemoteVideo(false, 'create');
-    }
-  };
-
-  dataChannel.onclose = () => {
-    console.log('Data channel is closed');
-  };
-}
-
-function setupDataChannel(peerConnection) {
-  peerConnection.ondatachannel = (event) => {
-    dataChannel = event.channel;
-    
-    dataChannel.onopen = () => {
-      console.log('Data channel is open on the receiver side');
-    };
-    
-    dataChannel.onmessage = (event) => {
-      console.log('Received message from data channel on receiver side:', event.data);
-      if (event.data === 'handRaisedUp') {
-        showHandEmojiOnRemoteVideo(true, 'setup');
-      }else if(event.data === 'handRaiseDown'){
-        showHandEmojiOnRemoteVideo(false, 'setup');
-      }
-    };
-    
-    dataChannel.onclose = () => {
-      console.log('Data channel is closed on the receiver side');
-    };
-    
-    dataChannel.onerror = (error) => {
-      console.error('Data channel error:', error);
-    };
-  };
-}
-
-
-// Mostrar ou ocultar emoji no vídeo remoto
-function showHandEmojiOnRemoteVideo(show, type) {
-  console.log("show emoji em andamento ===>>>>", show, type)
-
-  var handEmoji = document.getElementById('handEmojiRemote');
-    if (show) {
-        handEmoji.style.display = 'block'; // mostra o emoji
-    } else {
-        handEmoji.style.display = 'none'; // oculta o emoji
-    }
-}
-
 
 function registerPeerConnectionListeners() {
   peerConnection.addEventListener('icegatheringstatechange', () => {
@@ -347,13 +274,70 @@ function registerPeerConnectionListeners() {
       `ICE connection state change: ${peerConnection.iceConnectionState}`);
   });
 
-  createDataChannel();
-
+  peerConnection.addEventListener('datachannel', event => {
+    const channel = event.channel;
+    console.log(`datachannel: ${channel}`);
+  });
 }
 
+// Função para definir o canal de dados
+function setupDataChannel(channel) {
+  channel.onopen = () => console.log(`${channel.label} is open`);
+
+  channel.onmessage = (event) => {
+    const message = event.data;
+    if (message === 'handRaisedUp') {
+      // Exibe o emoji na tela remota
+      document.getElementById('handEmojiRemote').style.display = 'block';
+    } else if (message === 'handDown') {
+      // Oculta o emoji na tela remota
+      document.getElementById('handEmojiRemote').style.display = 'none';
+    }
+  };
+
+  channel.onerror = (error) => console.error('Data channel error:', error);
+  channel.onclose = () => console.log(`${channel.label} is closed`);
+}
+
+// Função para levantar a mão
+function raiseHand() {
+  if (emojiChannel && emojiChannel.readyState === 'open') {
+    console.log('Enviando "mão levantada" pelo canal de dados.');
+    emojiChannel.send('handRaisedUp');
+
+    // Exibe o emoji localmente
+    document.getElementById('handEmoji').style.display = 'block';
+
+    // Atualiza os botões
+    document.querySelector('#raiseHandBtn').style.display = 'none';
+    document.querySelector('#downHandBtn').style.display = 'inline-block';
+
+  } else {
+    console.error('Canal de dados não está disponível ou não está aberto.');
+  }
+}
+
+// Função para abaixar a mão
+function downHand() {
+  if (emojiChannel && emojiChannel.readyState === 'open') {
+    console.log('Enviando "mão abaixada" pelo canal de dados.');
+    emojiChannel.send('handDown');
+
+    // Oculta o emoji localmente
+    document.getElementById('handEmoji').style.display = 'none';
+
+    // Atualiza os botões
+    document.querySelector('#raiseHandBtn').style.display = 'inline-block';
+    document.querySelector('#downHandBtn').style.display = 'none';
+
+  } else {
+    console.error('Canal de dados não está disponível ou não está aberto.');
+  }
+}
 
 // Função para compartilhar a tela
 async function startScreenShare() {
+
   if (isScreenSharing) {
     console.log('A tela já está sendo compartilhada.');
     return;
@@ -392,6 +376,7 @@ async function startScreenShare() {
 
 // Função para parar de compartilhar a tela
 async function stopScreenShare() {
+
   if (!isScreenSharing) {
     console.log('Nenhuma tela está sendo compartilhada.');
     return;
@@ -446,7 +431,7 @@ async function hangUp(e) {
   // Verifica se a conexão ainda está aberta antes de fechar
   if (peerConnection) {
     if (peerConnection.connectionState !== 'closed') {
-        peerConnection.close(); // Fecha a conexão WebRTC
+      peerConnection.close(); // Fecha a conexão WebRTC
     }
   }
 
@@ -459,11 +444,10 @@ async function hangUp(e) {
   document.querySelector('#screenShareBtn').disabled = true;
   document.querySelector('#stopScreenShareBtn').disabled = true;
   document.querySelector('#currentRoom').innerText = '';
+  document.querySelector('#raiseHandBtn').disabled = true;
+  document.querySelector('#downHandBtn').disabled = true;
   document.querySelector('#handEmoji').style.display = 'none';
   document.querySelector('#handEmojiRemote').style.display = 'none';
-
-
-
 
   // Deleta a sala no hangup
   if (roomId) {
@@ -483,44 +467,5 @@ async function hangUp(e) {
   document.location.reload(true);
 }
 
-
-
-
-// Função para reiniciar caso o usuário recarregue a tela
-window.onbeforeunload = function () {
-  console.log('Reiniciando tela');
-
-  if (peerConnection) {
-    peerConnection.close();
-  }
-
-  // Para todos os streams locais
-  if (localStream) {
-    localStream.getTracks().forEach(track => track.stop());
-  }
-
-  // Para o stream de tela, se estiver sendo compartilhado
-  if (screenStream) {
-    screenStream.getTracks().forEach(track => track.stop());
-  }
-
-  peerConnection = null;
-  localStream = null;
-  remoteStream = null;
-  screenStream = null;
-  isScreenSharing = false;
-
-   // Reseta os botões e interface
-   document.querySelector('#cameraBtn').disabled = false;
-   document.querySelector('#joinBtn').disabled = true;
-   document.querySelector('#createBtn').disabled = true;
-   document.querySelector('#hangupBtn').disabled = true;
-   document.querySelector('#screenShareBtn').disabled = true;
-   document.querySelector('#stopScreenShareBtn').disabled = true;
-   document.querySelector('#raiseHandBtn').disabled = true;
-
-   document.querySelector('#currentRoom').innerText = '';
-}
-
-// Chama função que inicializa a aplicação
+// Inicializa a aplicação
 init();
