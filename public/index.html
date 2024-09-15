@@ -44,14 +44,24 @@
         <i class="material-icons mdc-button__icon" aria-hidden="true">stop_screen_share</i>
         <span class="mdc-button__label">Parar de compartilhar</span>
     </button>
+    <button class="mdc-button mdc-button--raised" disabled id="raiseHandBtn">
+        <i class="material-icons mdc-button__icon" aria-hidden="true">hand</i>
+        <span class="mdc-button__label">Levantar a mão</span>
+    </button>
     
 </div>
 <div>
     <span id="currentRoom"></span>
 </div>
 <div id="videos">
-    <video id="localVideo" muted autoplay playsinline></video>
-    <video id="remoteVideo" autoplay playsinline></video>
+    <div class="video-container">
+        <video id="localVideo" muted autoplay playsinline></video>
+        <div id="handEmoji" class="emoji">✋</div>
+    </div>
+    <div class="video-container">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div id="handEmojiRemote" class="emoji">✋</div>
+    </div>
 </div>
 <div class="mdc-dialog"
      id="room-dialog"
@@ -61,12 +71,12 @@
      aria-describedby="my-dialog-content">
     <div class="mdc-dialog__container">
         <div class="mdc-dialog__surface">
-            <h2 class="mdc-dialog__title" id="my-dialog-title">Join room</h2>
+            <h2 class="mdc-dialog__title" id="my-dialog-title">Entrar na sala</h2>
             <div class="mdc-dialog__content" id="my-dialog-content">
-                Enter ID for room to join:
+                Digite o id da sala:
                 <div class="mdc-text-field">
                     <input type="text" id="room-id" class="mdc-text-field__input">
-                    <label class="mdc-floating-label" for="my-text-field">Room ID</label>
+                    <label class="mdc-floating-label" for="my-text-field"></label>
                     <div class="mdc-line-ripple"></div>
                 </div>
             </div>
