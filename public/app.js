@@ -66,6 +66,18 @@ function init() {
   document.querySelector('#raiseHandBtn').addEventListener('click', raiseHand); // Evento para levantar a mão na tela
   document.querySelector('#downHandBtn').addEventListener('click', downHand); // Evento para abaixar a mão na tela
   document.getElementById('sendBtn').addEventListener('click', sendMessage); // Evento para enviar mensagem no chat
+  document.getElementById('muteSelfBtn').addEventListener('click', function() {
+    var muteEmoji = document.getElementById('muteEmoji');
+    if (muteEmoji.style.display === 'none' || muteEmoji.style.display === '') {
+       muteEmoji.style.display = 'block'; // mostra o emoji
+         muteAudio(true); // Envia a mensagem para o outro usuário
+    } else {
+        muteEmoji.style.display = 'none'; // oculta o emoji
+        muteAudio(false); // Envia a mensagem para o outro usuário
+    }
+  });
+
+
   roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog')); // Inicializa o diálogo modal para criação/entrada em uma sala.
 }
 
@@ -392,6 +404,133 @@ function showEmojiOnMuteAudio(show, type) {
     }
 
   document.querySelector('#downHandBtn').disabled = false;
+  document.querySelector('#muteSelfBtn').disabled = false;
+
+  
+}
+
+// Modifique a função raiseHand para enviar uma mensagem via o canal de dados
+function raiseHand(up) {
+  if (dataChannel && dataChannel.readyState === 'open') {
+      console.log('Enviando mensagem de "mão levantada" via canal de dados.');
+      if(up)
+        dataChannel.send('handRaisedUp');
+      else 
+        dataChannel.send('handRaiseDown');
+
+      console.log(dataChannel)
+  } else {
+      console.log('dataChannel:', dataChannel);
+      console.log('dataChannel.readyState:', dataChannel ? dataChannel.readyState : 'dataChannel is not initialized');
+      console.error('Canal de dados não está disponível ou não está aberto.');
+  }
+}
+
+// Modifique a função raiseHand para enviar uma mensagem via o canal de dados
+function muteAudio(up) {
+  if (dataChannel && dataChannel.readyState === 'open') {
+      console.log('Enviando mensagem de "mutar aúdio" via canal de dados.');
+      if(up)
+        dataChannel.send('muteUp');
+      else 
+        dataChannel.send('muteDown');
+
+      console.log(dataChannel)
+  } else {
+      console.log('dataChannel:', dataChannel);
+      console.log('dataChannel.readyState:', dataChannel ? dataChannel.readyState : 'dataChannel is not initialized');
+      console.error('Canal de dados não está disponível ou não está aberto.');
+  }
+}
+
+// Crie um canal de dados quando a conexão for criada
+function createDataChannel() {
+  dataChannel = peerConnection.createDataChannel('handRaiseChannel');
+  
+  dataChannel.onopen = () => {
+    console.log('Data channel is open');
+  };
+  
+  dataChannel.onmessage = (event) => {
+    console.log('Received message from data channel:', event.data);
+    if (event.data === 'handRaisedUp') {
+      showHandEmojiOnRemoteVideo(true, 'create');
+    }else if(event.data === 'handRaiseDown'){
+      showHandEmojiOnRemoteVideo(false, 'create');
+    }else if(event.data == 'muteUp'){
+      showEmojiOnMuteAudio(true)
+
+    }else if(event.data == 'muteDown'){
+      showEmojiOnMuteAudio(false)
+    }
+
+  };
+
+  dataChannel.onclose = () => {
+    console.log('Data channel is closed');
+  };
+}
+
+function setupDataChannel(peerConnection) {
+  peerConnection.ondatachannel = (event) => {
+    dataChannel = event.channel;
+    
+    dataChannel.onopen = () => {
+      console.log('Data channel is open on the receiver side');
+    };
+    
+    dataChannel.onmessage = (event) => {
+      console.log('Received message from data channel on receiver side:', event.data);
+      if (event.data === 'handRaisedUp') {
+        showHandEmojiOnRemoteVideo(true, 'setup');
+      }else if(event.data === 'handRaiseDown'){
+        showHandEmojiOnRemoteVideo(false, 'setup');
+      
+      }else if(event.data == 'muteUp'){
+        showEmojiOnMuteAudio(true)
+
+      }else if(event.data == 'muteDown'){
+        showEmojiOnMuteAudio(false)
+      }
+    };
+    
+    dataChannel.onclose = () => {
+      console.log('Data channel is closed on the receiver side');
+    };
+    
+    dataChannel.onerror = (error) => {
+      console.error('Data channel error:', error);
+    };
+  };
+}
+
+
+// Mostrar ou ocultar emoji no vídeo remoto
+function showHandEmojiOnRemoteVideo(show) {
+  console.log("show emoji em andamento ===>>>>", show)
+
+  var handEmoji = document.getElementById('handEmojiRemote');
+    if (show) {
+        handEmoji.style.display = 'block'; // mostra o emoji
+    } else {
+        handEmoji.style.display = 'none'; // oculta o emoji
+    }
+}
+
+function showEmojiOnMuteAudio(show, type) {
+  console.log("show emoji em andamento ===>>>>", show, type)
+
+  var muteEmoji = document.getElementById('muteEmojiRemote');
+  var mute = document.getElementById('remoteVideo');
+
+    if (show) {
+      muteEmoji.style.display = 'block'; // mostra o emoji
+      mute.muted = true;
+      
+    } else {
+      muteEmoji.style.display = 'none'; // oculta o emoji
+      mute.muted = false;
+    }
 }
 
 function registerPeerConnectionListeners() {
@@ -641,9 +780,12 @@ async function hangUp(e) {
   document.location.reload(true);
 }
 
+<<<<<<< HEAD
 
 
 
+=======
+>>>>>>> d8659bc (Inclusão da funcionalidade de mutar som)
 // Função para reiniciar caso o usuário recarregue a tela
 window.onbeforeunload = function () {
   console.log('Reiniciando tela');
