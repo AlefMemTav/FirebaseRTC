@@ -431,12 +431,14 @@ window.onbeforeunload = function () {
     screenStream.getTracks().forEach(track => track.stop());
   }
 
-  peerConnection = null;
+  // peerConnection = null;
   localStream = null;
-  remoteStream = null;
+  // remoteStream = null;
 
   for(let i = 0; i<3 ; i++){
     remoteStreams[i] = null
+    peerConnection[i] = null
+
   }
   screenStream = null;
   isScreenSharing = false;
