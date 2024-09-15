@@ -43,6 +43,8 @@ let roomId = null; // Identificador da sala em que o usuário entrou ou criou
 let screenStream = null; // Stream da tela compartilhada
 let isScreenSharing = false; // Rastrear se a tela está sendo compartilhada
 
+let dataChannel = null;
+
 // Inicializa a aplicação
 function init() {
   document.querySelector('#cameraBtn').addEventListener('click', openUserMedia); // Evento para capturar mídia do usuário (câmera/microfone).
@@ -51,6 +53,16 @@ function init() {
   document.querySelector('#joinBtn').addEventListener('click', joinRoom); // Evento para entrar em uma sala WebRTC existente.
   document.querySelector('#screenShareBtn').addEventListener('click', startScreenShare); // Evento para iniciar o compartilhamento de tela.
   document.querySelector('#stopScreenShareBtn').addEventListener('click', stopScreenShare); // Evento para parar o compartilhamento de tela.
+  document.getElementById('raiseHandBtn').addEventListener('click', function() {
+    var handEmoji = document.getElementById('handEmoji');
+    if (handEmoji.style.display === 'none' || handEmoji.style.display === '') {
+        handEmoji.style.display = 'block'; // mostra o emoji
+        raiseHand(true); // Envia a mensagem para o outro usuário
+    } else {
+        handEmoji.style.display = 'none'; // oculta o emoji
+        raiseHand(false); // Envia a mensagem para o outro usuário
+    }
+  });
   roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog')); // Inicializa o diálogo modal para criação/entrada em uma sala.
 }
 
@@ -78,7 +90,7 @@ async function createRoom() {
       console.log('Got final candidate!');
       return;
     }
-    console.log('Got candidate: ', event.candidate);
+    // console.log('Got candidate: ', event.candidate);
     callerCandidatesCollection.add(event.candidate.toJSON());
   });
   // Code for collecting ICE candidates above
@@ -130,7 +142,9 @@ async function createRoom() {
       }
     });
   });
-  // Listen for remote ICE candidates above
+
+  setupDataChannel(peerConnection);
+
 }
 
 function joinRoom() {
@@ -209,7 +223,9 @@ async function joinRoomById(roomId) {
         }
       });
     });
-    // Listening for remote ICE candidates above
+
+    setupDataChannel(peerConnection);
+
   }
 }
 
@@ -228,8 +244,89 @@ async function openUserMedia(e) {
   document.querySelector('#hangupBtn').disabled = false;
   document.querySelector('#screenShareBtn').disabled = false;
   document.querySelector('#stopScreenShareBtn').disabled = false;
+  document.querySelector('#raiseHandBtn').disabled = false;
   
 }
+
+// Modifique a função raiseHand para enviar uma mensagem via o canal de dados
+function raiseHand(up) {
+  if (dataChannel && dataChannel.readyState === 'open') {
+      console.log('Enviando mensagem de "mão levantada" via canal de dados.');
+      if(up)
+        dataChannel.send('handRaisedUp');
+      else 
+        dataChannel.send('handRaiseDown');
+
+      console.log(dataChannel)
+  } else {
+      console.log('dataChannel:', dataChannel);
+      console.log('dataChannel.readyState:', dataChannel ? dataChannel.readyState : 'dataChannel is not initialized');
+      console.error('Canal de dados não está disponível ou não está aberto.');
+  }
+}
+
+// Crie um canal de dados quando a conexão for criada
+function createDataChannel() {
+  dataChannel = peerConnection.createDataChannel('handRaiseChannel');
+  
+  dataChannel.onopen = () => {
+    console.log('Data channel is open');
+  };
+  
+  dataChannel.onmessage = (event) => {
+    console.log('Received message from data channel:', event.data);
+    if (event.data === 'handRaisedUp') {
+      showHandEmojiOnRemoteVideo(true, 'create');
+    }else if(event.data === 'handRaiseDown'){
+      showHandEmojiOnRemoteVideo(false, 'create');
+    }
+  };
+
+  dataChannel.onclose = () => {
+    console.log('Data channel is closed');
+  };
+}
+
+function setupDataChannel(peerConnection) {
+  peerConnection.ondatachannel = (event) => {
+    dataChannel = event.channel;
+    
+    dataChannel.onopen = () => {
+      console.log('Data channel is open on the receiver side');
+    };
+    
+    dataChannel.onmessage = (event) => {
+      console.log('Received message from data channel on receiver side:', event.data);
+      if (event.data === 'handRaisedUp') {
+        showHandEmojiOnRemoteVideo(true, 'setup');
+      }else if(event.data === 'handRaiseDown'){
+        showHandEmojiOnRemoteVideo(false, 'setup');
+      }
+    };
+    
+    dataChannel.onclose = () => {
+      console.log('Data channel is closed on the receiver side');
+    };
+    
+    dataChannel.onerror = (error) => {
+      console.error('Data channel error:', error);
+    };
+  };
+}
+
+
+// Mostrar ou ocultar emoji no vídeo remoto
+function showHandEmojiOnRemoteVideo(show, type) {
+  console.log("show emoji em andamento ===>>>>", show, type)
+
+  var handEmoji = document.getElementById('handEmojiRemote');
+    if (show) {
+        handEmoji.style.display = 'block'; // mostra o emoji
+    } else {
+        handEmoji.style.display = 'none'; // oculta o emoji
+    }
+}
+
 
 function registerPeerConnectionListeners() {
   peerConnection.addEventListener('icegatheringstatechange', () => {
@@ -249,7 +346,11 @@ function registerPeerConnectionListeners() {
     console.log(
       `ICE connection state change: ${peerConnection.iceConnectionState}`);
   });
+
+  createDataChannel();
+
 }
+
 
 // Função para compartilhar a tela
 async function startScreenShare() {
@@ -358,6 +459,11 @@ async function hangUp(e) {
   document.querySelector('#screenShareBtn').disabled = true;
   document.querySelector('#stopScreenShareBtn').disabled = true;
   document.querySelector('#currentRoom').innerText = '';
+  document.querySelector('#handEmoji').style.display = 'none';
+  document.querySelector('#handEmojiRemote').style.display = 'none';
+
+
+
 
   // Deleta a sala no hangup
   if (roomId) {
@@ -376,6 +482,9 @@ async function hangUp(e) {
 
   document.location.reload(true);
 }
+
+
+
 
 // Função para reiniciar caso o usuário recarregue a tela
 window.onbeforeunload = function () {
@@ -408,6 +517,8 @@ window.onbeforeunload = function () {
    document.querySelector('#hangupBtn').disabled = true;
    document.querySelector('#screenShareBtn').disabled = true;
    document.querySelector('#stopScreenShareBtn').disabled = true;
+   document.querySelector('#raiseHandBtn').disabled = true;
+
    document.querySelector('#currentRoom').innerText = '';
 }
 

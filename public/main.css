@@ -88,3 +88,25 @@ div#videos > video {
     display: block;
     margin: 1em;
 }
+
+
+.video-container {
+    position: relative;
+    display: inline-block;
+}
+
+#handEmoji {
+    position: absolute;
+    bottom: 10px; 
+    right: 10px;  
+    font-size: 3rem; 
+    display: none;
+}
+
+#handEmojiRemote {
+    position: absolute;
+    bottom: 10px; 
+    right: 10px; 
+    font-size: 3rem; 
+    display: none; 
+}
