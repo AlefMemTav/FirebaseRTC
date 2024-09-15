@@ -18,41 +18,41 @@
     <link rel="stylesheet" type="text/css" href="main.css">
 </head>
 <body>
-<h1>Welcome to FirebaseRTC!</h1>
+<h1>Bem vindo(a) a chamada!</h1>
 <div id="buttons">
     <button class="mdc-button mdc-button--raised" id="cameraBtn">
         <i class="material-icons mdc-button__icon" aria-hidden="true">perm_camera_mic</i>
-        <span class="mdc-button__label">Open camera & microphone</span>
+        <span class="mdc-button__label">Abrir câmera e microfone</span>
     </button>
     <button class="mdc-button mdc-button--raised" disabled id="createBtn">
         <i class="material-icons mdc-button__icon" aria-hidden="true">group_add</i>
-        <span class="mdc-button__label">Create room</span>
+        <span class="mdc-button__label">Criar sala</span>
     </button>
     <button class="mdc-button mdc-button--raised" disabled id="joinBtn">
         <i class="material-icons mdc-button__icon" aria-hidden="true">group</i>
-        <span class="mdc-button__label">Join room</span>
+        <span class="mdc-button__label">Entrar em uma sala</span>
     </button>
     <button class="mdc-button mdc-button--raised" disabled id="hangupBtn">
         <i class="material-icons mdc-button__icon" aria-hidden="true">close</i>
-        <span class="mdc-button__label">Hangup</span>
+        <span class="mdc-button__label">Sair</span>
     </button>
     <button class="mdc-button mdc-button--raised" disabled id="screenShareBtn">
         <i class="material-icons mdc-button__icon" aria-hidden="true">screen_share</i>
-        <span class="mdc-button__label">Share Screen</span>
+        <span class="mdc-button__label">Compartilhar tela</span>
     </button>
     <button class="mdc-button mdc-button--raised" id="stopScreenShareBtn" style="display: none;">
         <i class="material-icons mdc-button__icon" aria-hidden="true">stop_screen_share</i>
-        <span class="mdc-button__label">Stop Sharing</span>
+        <span class="mdc-button__label">Parar de compartilhar</span>
     </button>
+    
 </div>
 <div>
     <span id="currentRoom"></span>
 </div>
 <div id="videos">
-    <video id="localVideo" autoplay playsinline></video>
-  
+    <video id="localVideo" muted autoplay playsinline></video>
+    <video id="remoteVideo" autoplay playsinline></video>
 </div>
-
 <div class="mdc-dialog"
      id="room-dialog"
      role="alertdialog"
