@@ -21,6 +21,7 @@
 
 <body>
     <h1>Bem vindo(a) a chamada!</h1>
+    <!-- Botões -->
     <div id="buttons">
         <!-- Abrir a camera e microfone -->
         <button class="mdc-button mdc-button--raised" id="cameraBtn">
@@ -73,6 +74,18 @@
     <div class="video-container">
         <video id="remoteVideo" autoplay playsinline></video>
         <div id="handEmojiRemote" class="emoji">✋</div>
+    </div>
+    <!-- Chat -->
+    <div id="chat" style="padding: 10px; border-top: 1px solid #ccc; margin-top: 10px;">
+        <h2>Chat</h2>
+        <ul id="messageList"
+            style="list-style-type: none; padding: 0; max-height: 200px; overflow-y: auto; border: 1px solid #ccc; margin-bottom: 10px;">
+        </ul>
+        <div>
+            <input type="text" id="messageInput" placeholder="Digite sua mensagem"
+                style="width: calc(100% - 80px); padding: 5px;">
+            <button id="sendBtn" style="width: 70px; padding: 5px;">Enviar</button>
+        </div>
     </div>
     <div class="mdc-dialog" id="room-dialog" role="alertdialog" aria-modal="true" aria-labelledby="my-dialog-title"
         aria-describedby="my-dialog-content">

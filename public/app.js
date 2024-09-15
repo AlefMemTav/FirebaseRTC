@@ -55,6 +55,7 @@ function init() {
   document.querySelector('#stopScreenShareBtn').addEventListener('click', stopScreenShare); // Evento para parar o compartilhamento de tela.
   document.querySelector('#raiseHandBtn').addEventListener('click', raiseHand); // Evento para levantar a mão na tela
   document.querySelector('#downHandBtn').addEventListener('click', downHand); // Evento para abaixar a mão na tela
+  document.getElementById('sendBtn').addEventListener('click', sendMessage); // Evento para enviar mensagem no chat
   roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog')); // Inicializa o diálogo modal para criação/entrada em uma sala.
 }
 
@@ -292,6 +293,8 @@ function setupDataChannel(channel) {
     } else if (message === 'handDown') {
       // Oculta o emoji na tela remota
       document.getElementById('handEmojiRemote').style.display = 'none';
+    } else {
+      addMessageToList(message, 'remote'); // Adiciona a mensagem recebida na lista
     }
   };
 
@@ -333,6 +336,37 @@ function downHand() {
   } else {
     console.error('Canal de dados não está disponível ou não está aberto.');
   }
+}
+
+// Função para enviar mensagens via canal de dados de chat
+function sendMessage() {
+  const messageInput = document.getElementById('messageInput');
+  const message = messageInput.value.trim();
+
+  if (message && chatChannel && chatChannel.readyState === 'open') {
+      chatChannel.send(message);  // Envia a mensagem pelo canal de dados
+      addMessageToList(message, 'local');  // Exibe a mensagem no chat localmente
+      messageInput.value = '';  // Limpa o campo de entrada
+  }
+}
+
+// Função para adicionar a mensagem à lista de mensagens
+function addMessageToList(message, sender) {
+  const messageList = document.getElementById('messageList');
+  const newMessageItem = document.createElement('li');
+  
+  if (sender === 'local') {
+      newMessageItem.textContent = `Você: ${message}`;
+      newMessageItem.style.color = 'blue';  // Diferencia a mensagem local com cor
+  } else if (sender === 'remote') {
+      newMessageItem.textContent = `Remoto: ${message}`;
+      newMessageItem.style.color = 'green';  // Diferencia a mensagem remota com outra cor
+  }
+
+  messageList.appendChild(newMessageItem);
+
+  // Rola para a última mensagem
+  messageList.scrollTop = messageList.scrollHeight;
 }
 
 // Função para compartilhar a tela
