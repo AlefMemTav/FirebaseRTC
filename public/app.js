@@ -44,6 +44,8 @@ let screenStream = null; // Stream da tela compartilhada
 let isScreenSharing = false; // Rastrear se a tela está sendo compartilhada
 let chatChannel = null; // Canal de dados para envio de mensagens diversas
 let emojiChannel = null; // Canal de dados para envio de emoji
+let muteChannel = null; // Canal de dados para envio de emoji
+
 
 // Inicializa a aplicação
 function init() {
@@ -56,6 +58,9 @@ function init() {
   document.querySelector('#raiseHandBtn').addEventListener('click', raiseHand); // Evento para levantar a mão na tela
   document.querySelector('#downHandBtn').addEventListener('click', downHand); // Evento para abaixar a mão na tela
   document.getElementById('sendBtn').addEventListener('click', sendMessage); // Evento para enviar mensagem no chat
+  document.querySelector('#muteAudioBtn').addEventListener('click', muteAudio); // Evento para mutar microfone
+  document.querySelector('#unMuteAudioBtn').addEventListener('click', unMuteAudio); // Evento para desmutar microfone
+ 
   roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog')); // Inicializa o diálogo modal para criação/entrada em uma sala.
 }
 
@@ -72,7 +77,10 @@ async function createRoom() {
   // Criando o Data Channel
   chatChannel = peerConnection.createDataChannel('chatChannel');
   emojiChannel = peerConnection.createDataChannel('emojiChannel');
+  muteChannel  = peerConnection.createDataChannel('muteChannel');
+
   setupDataChannel(chatChannel);
+  setupDataChannel(muteChannel);
   setupDataChannel(emojiChannel);
 
   registerPeerConnectionListeners();
@@ -178,6 +186,9 @@ async function joinRoomById(roomId) {
       } else if (channel.label === 'emojiChannel') {
         emojiChannel = channel;
         setupDataChannel(emojiChannel);
+      }else if(channel.label === 'muteChannel'){
+        muteChannel = channel;
+        setupDataChannel(muteChannel);
       }
     });
 
@@ -254,6 +265,8 @@ async function openUserMedia(e) {
   document.querySelector('#stopScreenShareBtn').disabled = false;
   document.querySelector('#raiseHandBtn').disabled = false;
   document.querySelector('#downHandBtn').disabled = false;
+  document.querySelector('#muteAudioBtn').disabled = false;
+  document.querySelector('#unMuteAudioBtn').disabled = false;
 }
 
 function registerPeerConnectionListeners() {
@@ -293,7 +306,16 @@ function setupDataChannel(channel) {
     } else if (message === 'handDown') {
       // Oculta o emoji na tela remota
       document.getElementById('handEmojiRemote').style.display = 'none';
-    } else {
+    }else if(message === 'muteAudioUp'){
+      document.getElementById('muteEmojiRemote').style.display = 'block';
+      var mute = document.getElementById('remoteVideo');
+      mute.muted = true;
+    }else if(message === 'unMuteAudioDown'){
+      document.getElementById('muteEmojiRemote').style.display = 'none';
+      var mute = document.getElementById('remoteVideo');
+      mute.muted = false;
+    }
+    else {
       addMessageToList(message, 'remote'); // Adiciona a mensagem recebida na lista
     }
   };
@@ -301,6 +323,7 @@ function setupDataChannel(channel) {
   channel.onerror = (error) => console.error('Data channel error:', error);
   channel.onclose = () => console.log(`${channel.label} is closed`);
 }
+
 
 // Função para levantar a mão
 function raiseHand() {
@@ -332,6 +355,38 @@ function downHand() {
     // Atualiza os botões
     document.querySelector('#raiseHandBtn').style.display = 'inline-block';
     document.querySelector('#downHandBtn').style.display = 'none';
+
+  } else {
+    console.error('Canal de dados não está disponível ou não está aberto.');
+  }
+}
+
+// Função para mutar audio
+function muteAudio() {
+  if (muteChannel && muteChannel.readyState === 'open') {
+      muteChannel.send('muteAudioUp');
+      document.getElementById('muteEmoji').style.display = 'block';
+
+      // Atualiza os botões
+      document.querySelector('#muteAudioBtn').style.display = 'none';
+      document.querySelector('#unMuteAudioBtn').style.display = 'inline-block';
+    
+  } else {
+    console.error('Canal de dados não está disponível ou não está aberto.');
+  }
+}
+
+// Função para desmutar audio
+function unMuteAudio() {
+  if (muteChannel && muteChannel.readyState === 'open') {
+    console.log('Enviando "Desmutar audio" pelo canal de dados.');
+    muteChannel.send('unMuteAudioDown');
+    // Oculta o emoji localmente
+    document.getElementById('muteEmoji').style.display = 'none';
+
+    // Atualiza os botões
+    document.querySelector('#muteAudioBtn').style.display = 'inline-block';
+    document.querySelector('#unMuteAudioBtn').style.display = 'none';
 
   } else {
     console.error('Canal de dados não está disponível ou não está aberto.');
@@ -482,6 +537,8 @@ async function hangUp(e) {
   document.querySelector('#downHandBtn').disabled = true;
   document.querySelector('#handEmoji').style.display = 'none';
   document.querySelector('#handEmojiRemote').style.display = 'none';
+  document.querySelector('#muteAudioBtn').disabled = true;
+  document.querySelector('#unMuteAudioBtn').disabled = true;
 
   // Deleta a sala no hangup
   if (roomId) {
