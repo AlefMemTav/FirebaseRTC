@@ -58,6 +58,14 @@
             <i class="material-icons mdc-button__icon" aria-hidden="true">close</i>
             <span class="mdc-button__label">Abaixar a mão</span>
         </button>
+        <button class="mdc-button mdc-button--raised" disable id="muteAudioBtn">
+            <i class="material-icons mdc-button__icon" aria-hidden="true">mic_off</i>
+           <span class="mdc-button__label">Mutar meu microfone</span>
+        </button>
+        <button class="mdc-button mdc-button--raised" id="unMuteAudioBtn" style="display: none;">
+            <i class="material-icons mdc-button__icon" aria-hidden="true">mic_on</i>
+           <span class="mdc-button__label">Ativar meu microfone</span>
+        </button>
         <!-- Sair -->
         <button class="mdc-button mdc-button--raised" disabled id="hangupBtn">
             <i class="material-icons mdc-button__icon" aria-hidden="true">close</i>
@@ -70,10 +78,12 @@
     <div class="video-container">
         <video id="localVideo" muted autoplay playsinline></video>
         <div id="handEmoji" class="emoji">✋</div>
+        <div id="muteEmoji" class="emoji">🔇</div>
     </div>
     <div class="video-container">
         <video id="remoteVideo" autoplay playsinline></video>
         <div id="handEmojiRemote" class="emoji">✋</div>
+        <div id="muteEmojiRemote" class="emoji">🔇</div>
     </div>
     <!-- Chat -->
     <div id="chat" style="padding: 10px; border-top: 1px solid #ccc; margin-top: 10px;">
