@@ -57,10 +57,10 @@ function init() {
   document.querySelector('#stopScreenShareBtn').addEventListener('click', stopScreenShare); // Evento para parar o compartilhamento de tela.
   document.querySelector('#raiseHandBtn').addEventListener('click', raiseHand); // Evento para levantar a mão na tela
   document.querySelector('#downHandBtn').addEventListener('click', downHand); // Evento para abaixar a mão na tela
-  document.getElementById('sendBtn').addEventListener('click', sendMessage); // Evento para enviar mensagem no chat
+  document.querySelector('#sendBtn').addEventListener('click', sendMessage); // Evento para enviar mensagem no chat
   document.querySelector('#muteAudioBtn').addEventListener('click', muteAudio); // Evento para mutar microfone
   document.querySelector('#unMuteAudioBtn').addEventListener('click', unMuteAudio); // Evento para desmutar microfone
- 
+
   roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog')); // Inicializa o diálogo modal para criação/entrada em uma sala.
 }
 
@@ -77,7 +77,7 @@ async function createRoom() {
   // Criando o Data Channel
   chatChannel = peerConnection.createDataChannel('chatChannel');
   emojiChannel = peerConnection.createDataChannel('emojiChannel');
-  muteChannel  = peerConnection.createDataChannel('muteChannel');
+  muteChannel = peerConnection.createDataChannel('muteChannel');
 
   setupDataChannel(chatChannel);
   setupDataChannel(muteChannel);
@@ -186,7 +186,7 @@ async function joinRoomById(roomId) {
       } else if (channel.label === 'emojiChannel') {
         emojiChannel = channel;
         setupDataChannel(emojiChannel);
-      }else if(channel.label === 'muteChannel'){
+      } else if (channel.label === 'muteChannel') {
         muteChannel = channel;
         setupDataChannel(muteChannel);
       }
@@ -292,6 +292,7 @@ function registerPeerConnectionListeners() {
     const channel = event.channel;
     console.log(`datachannel: ${channel}`);
   });
+
 }
 
 // Função para definir o canal de dados
@@ -306,11 +307,11 @@ function setupDataChannel(channel) {
     } else if (message === 'handDown') {
       // Oculta o emoji na tela remota
       document.getElementById('handEmojiRemote').style.display = 'none';
-    }else if(message === 'muteAudioUp'){
+    } else if (message === 'muteAudioUp') {
       document.getElementById('muteEmojiRemote').style.display = 'block';
       var mute = document.getElementById('remoteVideo');
       mute.muted = true;
-    }else if(message === 'unMuteAudioDown'){
+    } else if (message === 'unMuteAudioDown') {
       document.getElementById('muteEmojiRemote').style.display = 'none';
       var mute = document.getElementById('remoteVideo');
       mute.muted = false;
@@ -323,7 +324,6 @@ function setupDataChannel(channel) {
   channel.onerror = (error) => console.error('Data channel error:', error);
   channel.onclose = () => console.log(`${channel.label} is closed`);
 }
-
 
 // Função para levantar a mão
 function raiseHand() {
@@ -364,13 +364,13 @@ function downHand() {
 // Função para mutar audio
 function muteAudio() {
   if (muteChannel && muteChannel.readyState === 'open') {
-      muteChannel.send('muteAudioUp');
-      document.getElementById('muteEmoji').style.display = 'block';
+    muteChannel.send('muteAudioUp');
+    document.getElementById('muteEmoji').style.display = 'block';
 
-      // Atualiza os botões
-      document.querySelector('#muteAudioBtn').style.display = 'none';
-      document.querySelector('#unMuteAudioBtn').style.display = 'inline-block';
-    
+    // Atualiza os botões
+    document.querySelector('#muteAudioBtn').style.display = 'none';
+    document.querySelector('#unMuteAudioBtn').style.display = 'inline-block';
+
   } else {
     console.error('Canal de dados não está disponível ou não está aberto.');
   }
@@ -399,9 +399,9 @@ function sendMessage() {
   const message = messageInput.value.trim();
 
   if (message && chatChannel && chatChannel.readyState === 'open') {
-      chatChannel.send(message);  // Envia a mensagem pelo canal de dados
-      addMessageToList(message, 'local');  // Exibe a mensagem no chat localmente
-      messageInput.value = '';  // Limpa o campo de entrada
+    chatChannel.send(message);  // Envia a mensagem pelo canal de dados
+    addMessageToList(message, 'local');  // Exibe a mensagem no chat localmente
+    messageInput.value = '';  // Limpa o campo de entrada
   }
 }
 
@@ -409,13 +409,13 @@ function sendMessage() {
 function addMessageToList(message, sender) {
   const messageList = document.getElementById('messageList');
   const newMessageItem = document.createElement('li');
-  
+
   if (sender === 'local') {
-      newMessageItem.textContent = `Você: ${message}`;
-      newMessageItem.style.color = 'blue';  // Diferencia a mensagem local com cor
+    newMessageItem.textContent = `Você: ${message}`;
+    newMessageItem.style.color = 'blue';  // Diferencia a mensagem local com cor
   } else if (sender === 'remote') {
-      newMessageItem.textContent = `Remoto: ${message}`;
-      newMessageItem.style.color = 'green';  // Diferencia a mensagem remota com outra cor
+    newMessageItem.textContent = `Remoto: ${message}`;
+    newMessageItem.style.color = 'green';  // Diferencia a mensagem remota com outra cor
   }
 
   messageList.appendChild(newMessageItem);
@@ -436,6 +436,13 @@ async function startScreenShare() {
     // Obtém o stream da tela compartilhada
     screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
 
+    // Se houver um peerConnection, atualize o track de vídeo
+    if (peerConnection) {
+      const videoTrack = screenStream.getVideoTracks()[0];
+      const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+      sender.replaceTrack(videoTrack);
+    }
+
     // Mostra a tela compartilhada no localVideo
     const localVideo = document.querySelector('#localVideo');
     localVideo.srcObject = screenStream;
@@ -444,19 +451,13 @@ async function startScreenShare() {
     document.querySelector('#screenShareBtn').style.display = 'none'; // Oculta botão de compartilhar tela
     document.querySelector('#stopScreenShareBtn').style.display = 'inline-block'; // Mostra botão de parar compartilhamento de tela
 
-    // Se houver um peerConnection, atualize o track de vídeo
-    if (peerConnection) {
-      const videoTrack = screenStream.getVideoTracks()[0];
-      const sender = peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
-      if (sender) {
-        peerConnection.removeTrack(sender);
-      }
-      peerConnection.addTrack(videoTrack, screenStream);
-    }
-    localStream = null;
-    // Armazena o stream compartilhado
-    localStream = screenStream;
     isScreenSharing = true;
+
+    // Adicionar um listener para saber quando o usuário parar de compartilhar a tela
+    videoTrack.onended = () => {
+      // Quando o compartilhamento de tela terminar, voltar para a câmera
+      stopScreenShare();
+    };
 
   } catch (error) {
     console.error('Error sharing screen:', error);
@@ -465,43 +466,50 @@ async function startScreenShare() {
 
 // Função para parar de compartilhar a tela
 async function stopScreenShare() {
-
   if (!isScreenSharing) {
     console.log('Nenhuma tela está sendo compartilhada.');
     return;
   }
 
+  // Se houver uma stream de tela compartilhada, pare todas as tracks
   if (screenStream) {
-    // Para todos os tracks do stream compartilhado
     screenStream.getTracks().forEach(track => track.stop());
   }
 
   try {
-    // Restaura o stream da câmera no localVideo
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    // Restaura o stream da câmera
     const localVideo = document.querySelector('#localVideo');
-    localVideo.srcObject = localStream;
 
-    // Atualiza os botões
-    document.querySelector('#screenShareBtn').style.display = 'inline-block'; // Mostra botão de compartilhar tela
-    document.querySelector('#stopScreenShareBtn').style.display = 'none'; // Oculta botão de parar compartilhamento de tela
-
-    // Se houver um peerConnection, atualize o track de vídeo
-    if (peerConnection) {
-      const videoTrack = localStream.getVideoTracks()[0];
-      const sender = peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
-      if (sender) {
-        peerConnection.removeTrack(sender);
-      }
-      peerConnection.addTrack(videoTrack, localStream);
+    // Verifica se o localStream já existe (câmera ativa), senão ativa a câmera novamente
+    if (!localStream) {
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true });
     }
 
+    localVideo.srcObject = localStream;
+
+    // Se houver um peerConnection, substitua a track de vídeo
+    if (peerConnection) {
+      const videoTrack = localStream.getVideoTracks()[0];
+      const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+
+      if (sender) {
+        sender.replaceTrack(videoTrack); // Substitui a track da tela pela da câmera
+      } else {
+        peerConnection.addTrack(videoTrack, localStream); // Adiciona a track caso não exista
+      }
+    }
+
+    // Atualiza a interface de usuário (botões)
+    document.querySelector('#screenShareBtn').style.display = 'inline-block'; // Mostra o botão de compartilhar tela
+    document.querySelector('#stopScreenShareBtn').style.display = 'none'; // Oculta o botão de parar compartilhamento de tela
+
   } catch (error) {
-    console.error('Error accessing camera:', error);
+    console.error('Erro ao acessar a câmera:', error);
   } finally {
-    isScreenSharing = false;
+    isScreenSharing = false; // Atualiza o estado de compartilhamento de tela
   }
 }
+
 
 // Função para encerrar a chamada
 async function hangUp(e) {
@@ -524,8 +532,11 @@ async function hangUp(e) {
     }
   }
 
+  // Limpra videos
   document.querySelector('#localVideo').srcObject = null;
   document.querySelector('#remoteVideo').srcObject = null;
+
+  // Desabilita botões
   document.querySelector('#cameraBtn').disabled = false;
   document.querySelector('#joinBtn').disabled = true;
   document.querySelector('#createBtn').disabled = true;
@@ -535,10 +546,14 @@ async function hangUp(e) {
   document.querySelector('#currentRoom').innerText = '';
   document.querySelector('#raiseHandBtn').disabled = true;
   document.querySelector('#downHandBtn').disabled = true;
-  document.querySelector('#handEmoji').style.display = 'none';
-  document.querySelector('#handEmojiRemote').style.display = 'none';
   document.querySelector('#muteAudioBtn').disabled = true;
   document.querySelector('#unMuteAudioBtn').disabled = true;
+
+  // Limpa emojis
+  document.querySelector('#handEmoji').style.display = 'none';
+  document.querySelector('#handEmojiRemote').style.display = 'none';
+  document.querySelector('#muteEmoji').style.display = 'none';
+  document.querySelector('#muteEmojiRemote').style.display = 'none';
 
   // Deleta a sala no hangup
   if (roomId) {
